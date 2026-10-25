@@ -86,7 +86,7 @@ class CourseListView(generic.ListView):
 
 class CourseDetailView(generic.DetailView):
     model = Course
-    template_name = 'onlinecourse/course_detail_bootstrap.html'
+    template_name = 'onlinecourse/course_details_bootstrap.html'
 
 
 def enroll(request, course_id):
@@ -117,7 +117,7 @@ def submit(request, course_id):
     submission = Submission.objects.create(enrollment=enrollment)
     choices = extract_answers(request)
     submission.choices.set(choices)
-    return HttpResponseRedirect(reverse('onlinecourse:exam_result', args=(course.id, submission.id)))
+    return HttpResponseRedirect(reverse('onlinecourse:show_exam_result', args=(course.id, submission.id)))
 
 
 # An example method to collect the selected choices from the exam form from the request object
@@ -140,17 +140,26 @@ def extract_answers(request):
 def show_exam_result(request, course_id, submission_id):
     context = {}
     course = get_object_or_404(Course, pk=course_id)
-    submission = Submission.objects.get(id=submission_id)
-    choices = submission.choices.all()
+    submission = get_object_or_404(Submission, pk=submission_id)
+
+    selected_ids = list(submission.choices.values_list('id', flat=True))
 
     total_score = 0
-    for question in course.question_set.all():
-        selected_ids = choices.filter(question=question).values_list('id', flat=True)
+    possible_score = 0
+
+    questions = course.question_set.all()
+    for question in questions:
+        possible_score += question.grade
         if question.is_get_score(selected_ids):
             total_score += question.grade
 
     context['course'] = course
+    context['submission'] = submission
+    context['selected_ids'] = selected_ids
     context['grade'] = total_score
-    context['choices'] = choices
+    context['possible'] = possible_score
+    context['possible_score'] = possible_score
+    context['choices'] = submission.choices.all()
+    context['questions'] = questions
 
     return render(request, 'onlinecourse/exam_result_bootstrap.html', context)

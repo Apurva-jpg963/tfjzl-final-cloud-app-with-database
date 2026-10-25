@@ -75,6 +75,9 @@ class Lesson(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     content = models.TextField()
 
+    def __str__(self):
+        return self.title
+
 
 # Enrollment model
 # <HINT> Once a user enrolled a class, an enrollment entry should be created between the user and course
@@ -99,38 +102,52 @@ class Enrollment(models.Model):
     # Used to persist question content for a course
     # Has a One-To-Many (or Many-To-One) relationship with the course
     # Has a grade point for each question
-    # Has question content
+    # Has question_text
     # Other fields and methods you would like to design
 class Question(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
-    content = models.CharField(max_length=200)
-    grade = models.IntegerField(default=50)
+    question_text = models.CharField(max_length=200)
+    grade = models.IntegerField(default=1)
+
+    @property
+    def content(self):
+        return self.question_text
+
+    @content.setter
+    def content(self, val):
+        self.question_text = val
 
     def __str__(self):
-        return "Question: " + self.content
+        return self.question_text
 
     # method to calculate if the learner gets the score of the question
     def is_get_score(self, selected_ids):
         all_answers = self.choice_set.filter(is_correct=True).count()
         selected_correct = self.choice_set.filter(is_correct=True, id__in=selected_ids).count()
-        if all_answers == selected_correct:
-            return True
-        else:
-            return False
+        selected_wrong = self.choice_set.filter(is_correct=False, id__in=selected_ids).count()
+        return all_answers == selected_correct and selected_wrong == 0
 
 
 #  <HINT> Create a Choice Model with:
     # Used to persist choice content for a question
     # Has a One-To-Many (or Many-To-One) relationship with the question
-    # Has choice content
+    # Has choice_text
     # Has is_correct flag to indicate if this choice is correct
 class Choice(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
-    content = models.CharField(max_length=200)
+    choice_text = models.CharField(max_length=200)
     is_correct = models.BooleanField(default=False)
 
+    @property
+    def content(self):
+        return self.choice_text
+
+    @content.setter
+    def content(self, val):
+        self.choice_text = val
+
     def __str__(self):
-        return "Choice: " + self.content
+        return self.choice_text
 
 
 # One enrollment could have multiple submission
@@ -141,4 +158,4 @@ class Submission(models.Model):
     choices = models.ManyToManyField(Choice)
 
     def __str__(self):
-        return f"Submission for {self.enrollment.user.username} - {self.enrollment.course.name}"
+        return f"Enrollment: {self.enrollment.id}, Choices: {[choice.choice_text for choice in self.choices.all()]}"
